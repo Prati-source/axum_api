@@ -13,12 +13,14 @@ tracing = "0.1"
 tracing-subscriber = { version="0.3",  features = ["env-filter"]}
 tower-http = { version = "0.6.8", features = ["trace"] }
 dotenvy = "0.15"
+sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres", "time", "macros", "uuid"] }
+time = { version = "0.3", features = ["serde"] }
 
 # password hashing
 argon2        = "0.5"
 
 # session tokens
-uuid          = { version = "1", features = ["v4"] }
+uuid          = { version = "1", features = ["v4", "serde"] }
 
 # error handling
 thiserror     = "1"

@@ -2,17 +2,20 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+mod models;
 use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
-use serde::{Deserialize, Serialize};
+use serde::{ Serialize};
 use std::net::SocketAddr;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
+mod handlers;
 mod middlewares;
 use middlewares::auth::auth_middleware;
 use axum::middleware;
 use sqlx::PgPool;
+use sqlx::postgres::PgPoolOptions;
 use dotenvy::dotenv;
+use handlers::register::register_handler;
 
 
 #[derive(Serialize)]
@@ -20,16 +23,7 @@ struct HealthResponse {
     status: String,
 }
 
-#[derive(Deserialize)]
-struct CreateUser {
-    name: String,
-}
 
-#[derive(Serialize)]
-struct User {
-    id: u32,
-    name: String,
-}
 
 // Health check route
 async fn health() -> Json<HealthResponse> {
@@ -39,24 +33,9 @@ async fn health() -> Json<HealthResponse> {
 }
 
 // GET /users
-async fn get_users() -> Json<Vec<User>> {
-    let users = vec![
-        User { id: 1, name: "Alice".into() },
-        User { id: 2, name: "Bob".into() },
-    ];
 
-    Json(users)
-}
 
-// POST /users
-async fn create_user(Json(payload): Json<CreateUser>) -> Json<User> {
-    let user = User {
-        id: 3,
-        name: payload.name,
-    };
 
-    Json(user)
-}
 
 #[tokio::main]
 async fn main() {
@@ -65,14 +44,16 @@ async fn main() {
             .expect("DATABASE_URL must be set in .env");
 
         // create the connection pool
-    let pool = PgPool::connect(&database_url)
+    let pool: PgPool = PgPoolOptions::new()
+            .max_connections(5)
+            .connect(&database_url)
             .await
             .expect("failed to connect to database");
     // run migrations automatically on startup
-     sqlx::migrate!("./migrations")
-            .run(&pool)
-            .await
-            .expect("migrations failed");
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("migrations failed");
 
   tracing_subscriber::registry()
     .with(tracing_subscriber::filter::EnvFilter::new("tower_http=debug,axum=debug,info"))
@@ -83,19 +64,18 @@ async fn main() {
 
 let app = Router::new()
     .route("/health", get(health))
-    .route("/users", get(get_users))
-    .route("/users",post(create_user))
+    .route("/register", post(register_handler))
     .layer(
         ServiceBuilder::new()
             .layer(TraceLayer::new_for_http())
             .layer(middleware::from_fn(auth_middleware))
-
     )
     .with_state(pool)
    ;
 
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
+    let addr = SocketAddr::from((std::env::var("HOST").unwrap_or("127.0.0.1".to_string()).parse::<std::net::IpAddr>().unwrap()
+        , std::env::var("PORT").unwrap().parse::<u16>().unwrap()));
     println!("Server running on {}", addr);
 
     axum::serve(tokio::net::TcpListener::bind(addr).await.unwrap(), app)
