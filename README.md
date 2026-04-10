@@ -10,7 +10,7 @@ The system is designed for low-latency data ingestion and reliable delivery of l
 * Redis Cache: Stores "Last Known Position" with a 5-hour TTL to allow for session resumption during network drops.
 * PostgreSQL: Serves as the source of truth for user authentication (hashed passwords) and permanent delivery logs.
 * JWT Authentication: Stateless authorization for both REST endpoints and WebSocket upgrade handshakes.
-* 
+  
 
 ------------------------------
 ## 🚀 Key Features
@@ -20,7 +20,7 @@ The system is designed for low-latency data ingestion and reliable delivery of l
 * Session Recovery: Drivers can reconnect within a 5-hour window without losing state, thanks to Redis-backed session management.
 * Security: Argon2/Bcrypt password hashing and secure JWT verification for all protected routes.
 * Scalability: Containerized with Docker and orchestrated via Kubernetes (Kind) for local cluster simulation.
-* 
+  
 
 ------------------------------
 ## 🛠️ Tech Stack
@@ -31,7 +31,7 @@ The system is designed for low-latency data ingestion and reliable delivery of l
 * Caching/PubSub: Redis
 * Containerization: Docker & Kubernetes (Kind)
 * Auth: JWT (JSON Web Tokens)
-* 
+  
 
 ------------------------------
 ## 🚦 Getting Started## Prerequisites
