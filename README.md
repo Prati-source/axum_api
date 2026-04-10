@@ -43,8 +43,8 @@ The system is designed for low-latency data ingestion and reliable delivery of l
 
    1. Clone the repository:
    
-   git clone https://github.com
-   cd parcel-tracker
+   git clone https://github.comPrati-source/axum_api
+   cd axum_api
    
    2. Run the environment using Docker Compose:
    
@@ -62,13 +62,8 @@ Mobile signals are patchy. To solve this, the system implements a 60-second Pong
 I chose Rust for this project to ensure memory safety and thread safety without the overhead of a Garbage Collector, making it ideal for the high-frequency writes required by a logistics platform.
 ------------------------------
 ## 👨‍💻 Author
-[Your Name]
+Pramod S B
 Backend Developer based in Bengaluru, India.
 ------------------------------
-## 💡 Pro-Tips for your GitHub:
-
-* Replace [Your Name] and the git clone link.
-* Screenshots: If you have a simple frontend or even a terminal screenshot of the logs moving, add it!
-* License: Add a file named LICENSE (choose MIT) to make it look even more official.
 
 Would you like me to help you write a "Technical Challenges" section? This is where you explain exactly how you solved a specific bug. It’s the first thing a Senior Engineer looks for to see if you actually wrote the code!
