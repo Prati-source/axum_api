@@ -1,9 +1,4 @@
-use axum::{
-    http::Request,
-    middleware::Next,
-    response::Response,
-    http::StatusCode,
-};
+use axum::{http::Request, http::StatusCode, middleware::Next, response::Response};
 
 pub async fn auth_middleware(
     req: Request<axum::body::Body>,
