@@ -10,9 +10,10 @@ pub struct LocationUpdate {
     pub status: DriverStatus,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum DriverStatus {
+    Unknown,
     PickedUp,
     InTransit,
     DroppedOff,

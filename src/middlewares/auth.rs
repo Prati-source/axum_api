@@ -11,6 +11,5 @@ pub async fn auth_middleware(
             return Ok(next.run(req).await);
         }
     }
-
     Err(StatusCode::UNAUTHORIZED)
 }

@@ -1,0 +1,72 @@
+services:
+  axum-api:
+    build: .
+    image: parcel-app-trial:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=postgres://postgres:mysecretpassword@postgres_db:5432/postgres
+      - REDIS_URL=redis://redis:6379
+      - RUST_LOG=info
+      - PORT=8080
+      - HOST=0.0.0.0
+      - JWT_SECRET=${JWT_SECRET}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+    ulimits:
+      nofile:
+        soft: 10000
+        hard: 10000
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres_db:
+        condition: service_healthy
+  postgres_db:
+    image: postgres:alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=mysecretpassword
+      - POSTGRES_DB=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ulimits:
+      nofile:
+        soft: 300
+        hard: 300
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Redis also needs high limits if handling 10000s of connections
+    ulimits:
+      nofile:
+        soft: 10000
+        hard: 10000
+
+  k6-test:
+    image: loadimpact/k6:latest
+    profiles: ["test"] # This stops it from starting automatically
+    volumes:
+      - ./tests:/scripts
+    ulimits:
+      nofile:
+        soft: 10000
+        hard: 10000
+    command: run /scripts/driver_location.js
+
+volumes:
+  postgres-data:

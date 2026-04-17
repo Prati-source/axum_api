@@ -1,12 +1,13 @@
-use crate::models::{login_user::LoginUser, user::User};
+use crate::models::{login_user::{LoginUser, LoginUserFromDatabase}, user::User, user::UserRole};
 use argon2::{Argon2, PasswordVerifier};
 use axum::{
     extract::State, http::header::SET_COOKIE, http::StatusCode, response::IntoResponse, Json,
 };
 use jsonwebtoken::{encode, EncodingKey, Header};
 use serde_json::json;
-use sqlx::{self, PgPool};
 use time::{Duration, OffsetDateTime};
+use std::sync::Arc;
+use crate::AppState;
 
 fn create_token(user: User) -> Result<impl IntoResponse, (StatusCode, String)> {
     let claims = json!({
@@ -26,7 +27,7 @@ fn create_token(user: User) -> Result<impl IntoResponse, (StatusCode, String)> {
 }
 
 pub async fn login_handler(
-    State(pool): State<PgPool>,
+    State(state): State<Arc<AppState>>,
     Json(login_user): Json<LoginUser>,
 ) -> impl IntoResponse {
     if login_user.email.is_empty() || login_user.password.is_empty() {
@@ -34,23 +35,24 @@ pub async fn login_handler(
     }
 
     let user = sqlx::query_as::<_, User>(
-        "SELECT id, name, email, created_at, password FROM users WHERE email = $1",
+        "SELECT id, name, email, created_at, password, role, customer_profile AS TEXT, driver_profile AS TEXT FROM users WHERE email = $1",
     )
     .bind(login_user.email)
-    .fetch_one(&pool) // Use fetch_optional if the user might not exist
+    .fetch_one(&state.pool) // Use fetch_optional if the user might not exist
     .await;
-
-    println!("{:?}", user);
     match user {
         Ok(user) => {
-            let parsed_password = argon2::password_hash::PasswordHash::new(&user.password)
-                .expect("Failed to parse password hash");
-            println!("{:?}", parsed_password);
-            match Argon2::default()
-                .verify_password(login_user.password.as_bytes(), &parsed_password)
+            let user_clone = user.clone();
+            match tokio::task::spawn_blocking(move || {
+                let parsed_password = argon2::password_hash::PasswordHash::new(&user.password)
+                    .expect("Failed to parse password hash");
+                Argon2::default()
+                    .verify_password(login_user.password.as_bytes(), &parsed_password)
+            })
+            .await
             {
                 Ok(_) => {
-                     match create_token(user) {
+                     match create_token(user_clone) {
                         Ok(response) => response.into_response(),
                         Err((status, message)) => (status, message).into_response(),
                     }

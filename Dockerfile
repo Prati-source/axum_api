@@ -24,4 +24,5 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 
 FROM debian:bookworm-slim AS runtime
 COPY --from=builder /axum-api/axum-api .
-CMD ["/app/axum-api"]
+EXPOSE 8080
+CMD ["./axum-api"]

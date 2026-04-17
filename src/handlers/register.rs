@@ -4,25 +4,28 @@ use argon2::{
     Argon2, PasswordHasher,
 };
 use axum::{extract::State, http::StatusCode, Json};
-use sqlx::{self, PgPool};
+use sqlx::{self};
+use crate::bus::redis_bus;
+use std::sync::Arc;
+use crate::models::state::AppState;
+use crate::models::error::SyncError;
+use crate::bus::email_bus;
 
 pub async fn register_handler(
-    State(pool): State<PgPool>,
+    State(state): State<Arc<AppState>>,
     Json(cre): Json<CreateUser>,
-) -> Result<(StatusCode, Json<User>), StatusCode> {
+) -> Result<StatusCode, SyncError> {
     if cre.email.is_empty() || cre.name.is_empty() {
-        return Err(StatusCode::BAD_REQUEST);
+        return Ok(StatusCode::BAD_REQUEST);
     }
     let existing_user: Option<User> =
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
             .bind(&cre.email)
-            .fetch_optional(&pool)
-            .await
-            .expect("Failed to query user");
+            .fetch_optional(&state.pool)
+            .await?;
     if existing_user.is_some() {
-        return Err(StatusCode::CONFLICT);
+        return Ok(StatusCode::CONFLICT);
     }
-
     let argon2 = Argon2::default();
     let salt = SaltString::generate(&mut OsRng);
     let hashed_password = argon2
@@ -30,19 +33,16 @@ pub async fn register_handler(
         .expect("Failed to hash password")
         .to_string();
     let user = User::new(&cre, hashed_password);
-    let user_out = user.clone();
-    sqlx::query(
-        "INSERT INTO users (id, name, email, created_at, password)
-        VALUES ($1, $2, $3, $4, $5) RETURNING *",
-    )
-    .bind(user.id)
-    .bind(user.name)
-    .bind(user.email)
-    .bind(user.created_at)
-    .bind(user.password)
-    .fetch_one(&pool)
-    .await
-    .expect("Failed to insert user");
-
-    Ok((StatusCode::CREATED, Json(user_out)))
+    let email = user.email.clone();
+    let otp: u32 = rand::random_range(100_000..999_999);
+    redis_bus::publish_otp(&otp, &user, &state).await?;
+    match email_bus::send_verification_email(state, email, &otp).await {
+        Ok(_) => {
+            Ok(StatusCode::OK)
+        }
+        Err(e) => {
+            println!("Could not send email: {e}");
+            return Err(SyncError::Other(e.to_string()));
+        }
+    }
 }

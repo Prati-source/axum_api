@@ -1,7 +1,7 @@
 use crate::bus::redis_bus;
 use crate::models::{
     location_user::{ConnectParams, LocationUpdate},
-    redis_state::AppState,
+    state::AppState,
 };
 use axum::{
     extract::{
@@ -11,17 +11,20 @@ use axum::{
     response::IntoResponse,
 };
 use std::sync::Arc;
+use tokio::time::{ Duration, interval};
+use reqwest::StatusCode;
+
 
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
     Query(params): Query<ConnectParams>,
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
+
     ws.on_upgrade(move |socket| async move {
         match params.role.as_str() {
             "driver" => handle_driver(socket, state, params.parcel_id).await,
-            "customer" => handle_customer(socket, state, params.parcel_id).await,
-            _ => { /* unknown role — socket closes */ }
+            _ => { /* unauthorized */ }
         }
     })
 }
@@ -29,67 +32,48 @@ pub async fn ws_handler(
 /// Driver side: receive location from socket, publish to Redis
 async fn handle_driver(mut socket: WebSocket, state: Arc<AppState>, parcel_id: String) {
     tracing::info!("Driver connected for parcel {parcel_id}");
-
-    while let Some(Ok(Message::Text(text))) = socket.recv().await {
-        // Validate the shape before publishing
-        tracing::debug!(
-            "Received location update: {:?}",
-            serde_json::from_str::<LocationUpdate>(&text)
-        );
-        if serde_json::from_str::<LocationUpdate>(&text).is_err() {
-            tracing::warn!("Invalid location payload, dropping");
-            continue;
-        }
-        if let Err(e) = redis_bus::publish(&state, &parcel_id, &text).await {
-            tracing::error!("Redis publish error: {e}");
-        }
-    }
-
-    tracing::info!("Driver disconnected for parcel {parcel_id}");
-}
-
-/// Customer side: subscribe to Redis channel, push to WebSocket
-async fn handle_customer(mut socket: WebSocket, state: Arc<AppState>, parcel_id: String) {
-    tracing::info!("Customer connected for parcel {parcel_id}");
-
-    // Send last known position immediately so the map isn't blank
-    if let Ok(Some(last)) = redis_bus::last_position(&state, &parcel_id).await {
-        tracing::info!("{parcel_id}: last position: {last}");
-        let _ = socket.send(Message::Text(last.into())).await;
-    }
-
-    // Ensure a Redis subscriber task is running for this parcel
-    let tx = state.channel_for(&parcel_id);
-    if tx.receiver_count() == 0 {
-        // First customer — spawn the Redis subscriber
-        tokio::spawn(redis_bus::subscribe_parcel(
-            state.clone(),
-            parcel_id.clone(),
-        ));
-    }
-    let mut rx = tx.subscribe();
-
+    let mut stream_tick = interval(Duration::from_secs(20));
+    stream_tick.tick().await;
     loop {
         tokio::select! {
-            // Forward Redis messages to this customer's WebSocket
-            Ok(msg) = rx.recv() => {
-                 tracing::info!("{parcel_id}: {msg}");
-                if socket.send(Message::Text(msg.into())).await.is_err() {
-                    break; // customer disconnected
-                }
-
-            }
-            // Handle ping / close from customer side
-            Some(Ok(msg)) = socket.recv() => {
+                msg = socket.recv() => {
+                // Validate the shape before publishing
                 match msg {
-                    Message::Close(_) => break,
-                    Message::Ping(p) => { let _ = socket.send(Message::Pong(p)).await; }
-                    _ => {}
-                }
-            }
-            else => break,
-        }
-    }
+                    Some(Ok(Message::Text(text))) => {
+                        if let Ok(update) = serde_json::from_str::<LocationUpdate>(&text) {
+                            if let Err(e) = redis_bus::publish(&state, &parcel_id, &text, &update.latitude, &update.longitude, &update.driver_id).await {
+                                tracing::error!("Redis publish error: {e}");
+                                break;
+                            }
+                            socket.send(Message::Text("Success".into())).await.ok();
+                            continue;
+                        } else {
+                            tracing::warn!("Invalid location payload, dropping {text}");
+                            socket.send(Message::Text("Close".into())).await.ok();
+                            break;
+                        }
+                    },
+                    Some(Err(e)) => { tracing::warn!("Invalid location payload , Error: {:?}", e); socket.send(Message::Text("Close".into())).await.ok(); break; }
+                    Some(Ok(_)) => {  tracing::info!("Location update received for parcel {parcel_id}"); socket.send(Message::Text("Location not properly formatted".into())).await.ok(); break; }
+                    None => { tracing::warn!("Invalid location payload, dropping nothing"); socket.send(Message::Text("Close".into())).await.ok(); break; }
+                }//match msg
 
-    tracing::info!("Customer disconnected for parcel {parcel_id}");
+            }//msg
+                _ = stream_tick.tick() => {
+                    tracing::info!("Sending ping for parcel stream {parcel_id}");
+                if let Err(e) = redis_bus::redis_stream_publish(&state, &parcel_id).await {
+                    tracing::error!("Redis stream publish error: {e}");
+                    socket.send(Message::Text("Close".into())).await.ok();
+                } else {
+                    socket.send(Message::Text("Stream".into())).await.ok();
+                }
+                continue;
+            }
+
+
+        }//tokio: select
+
+    }//loop
+
+    tracing::info!("Driver disconnected for parcel {parcel_id}");
 }

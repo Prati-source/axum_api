@@ -1,20 +1,30 @@
 use dashmap::DashMap;
-use redis::Client;
+use redis::{aio::ConnectionManager, Client};
 use tokio::sync::broadcast;
+use sqlx::PgPool;
+use lettre::{AsyncSmtpTransport, Tokio1Executor};
+
 
 /// One in-process broadcast sender per parcel.
 /// Customers subscribe to this; the Redis listener feeds it.
 #[derive(Clone)]
 pub struct AppState {
-    pub redis: Client,
+    pub redis_manager : ConnectionManager,
+    pub redis_client: Client,
+    pub mailer: AsyncSmtpTransport<Tokio1Executor>,
+
     /// parcel_id → sender for that parcel's location stream
+    pub pool: PgPool,
     pub parcels: DashMap<String, broadcast::Sender<String>>,
 }
 
 impl AppState {
-    pub async fn new(redis: Client) -> Self {
+    pub async fn new(redis_manager: ConnectionManager, redis_client: redis::Client, pool: PgPool, mailer: AsyncSmtpTransport<Tokio1Executor>) -> Self {
         Self {
-            redis,
+            redis_manager,
+            redis_client,
+            mailer,
+            pool,
             parcels: DashMap::new(),
         }
     }
