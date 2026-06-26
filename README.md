@@ -16,6 +16,7 @@ Real-Time Parcel Distribution  Logistics Engine: Sustained 20k Virtual Users Web
 ![K6](https://img.shields.io/badge/k6_load_testing-7D64FF?style=for-the-badge&logo=k6&logoColor=white)
 ![Github Actions](https://img.shields.io/badge/Github-Actions-brightblue?style=for-the-badge)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FPrati-source%2Fhigh-concurrency-logistics-engine.svg?type=shield&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2FPrati-source%2Fhigh-concurrency-logistics-engine?ref=badge_shield&issueType=license)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FPrati-source%2Fhigh-concurrency-logistics-engine.svg?type=shield&issueType=security)](https://app.fossa.com/projects/git%2Bgithub.com%2FPrati-source%2Fhigh-concurrency-logistics-engine?ref=badge_shield&issueType=security)
 
 Status: Fully Operated Load-tested on  GKE Standard Kubernetes. Open for technical deep-dives.
 
