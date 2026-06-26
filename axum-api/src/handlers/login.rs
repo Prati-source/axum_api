@@ -17,7 +17,9 @@ fn create_token(user: User, encoding_key: &EncodingKey) -> Result<impl IntoRespo
         exp: exp.unix_timestamp() as u64,
         aud: "parcel-api".to_string(), //for restricting token usage to this API
     };
-    let token = encode(&Header::new(Algorithm::EdDSA), &claims, encoding_key).map_err(|e| {
+    let mut header = Header::new(Algorithm::EdDSA);  //from earlier this is major mistake on my part leading to big error during signing
+    header.typ = Some("JWT".to_string()); 
+    let token = encode(&header, &claims, encoding_key).map_err(|e| {
         tracing::error!("Failed to encode JWT token: {}", e);
         AuthError::InternalServerError
     })?;
