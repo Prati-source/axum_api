@@ -15,6 +15,7 @@ Real-Time Parcel Distribution  Logistics Engine: Sustained 20k Virtual Users Web
 ![Grafana](https://img.shields.io/badge/grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white)
 ![K6](https://img.shields.io/badge/k6_load_testing-7D64FF?style=for-the-badge&logo=k6&logoColor=white)
 ![Github Actions](https://img.shields.io/badge/Github-Actions-brightblue?style=for-the-badge)
+[![FOSSA Status](https://fossa.com)](https://fossa.com)
 
 Status: Fully Operated Load-tested on  GKE Standard Kubernetes. Open for technical deep-dives.
 
