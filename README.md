@@ -218,8 +218,8 @@ For 10000 VUs, 5000 Driver VUs and 5000 Customer VUs
 | 5,000 | ✓ Zero errors | Baseline proven |
 | 10,000 | ✓ Zero errors | C10K solved |
 | 20,000 | ✓ 100%  success | C20K solved |
-| ~35,000 | Estimated ceiling | Multiple Redis Nodes |
-| ~100,000 | More Horizontal scaling needed | Multiple Redis Nodes + Multiple Backend Pods |
+| ~35,000 | Estimated ceiling | untested theoretical I think Multiple Redis Nodes |
+| ~100,000 | untested theoretical i think i would face More Horizontal scaling needed | Multiple Redis Nodes + Multiple Backend Pods |
 
 
 
