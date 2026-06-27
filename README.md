@@ -215,15 +215,16 @@ For 10000 VUs, 5000 Driver VUs and 5000 Customer VUs
 
 | Connections | Status | Notes |
 | :--- | :--- | :--- |
-| 5,000 | ✓ Zero errors | Baseline verification. |
-| 10,000 | ✓ Zero errors | C10K threshold validated. |
-| 20,000 | ✓ 100% success | C20K benchmark achieved on active GKE cluster. |
-| **~35,000** | **Theoretical Horizon** | Projected limit for a single multi-node Redis cluster deployment (Untested). |
-| **~100,000** | **Theoretical Horizon** | Projected scaling target requiring sharded Redis clusters and multi-zone pod layouts (Untested). |
+| 5,000 | ✓ Zero errors | Baseline verified. |
+| 10,000 | ✓ Zero errors | C10K solved. |
+| 20,000 | ✓ 100% success | C20K benchmark achieved on GKE. |
+| **~35,000** | **Theoretical** | Estimated ceiling for a single cluster if scaled with multiple Redis nodes (Untested). |
+| **~100,000** | **Theoretical** | Long-term target. Will require a sharded Redis setup + multiple backend pod deployments (Untested). |
 
-> ⚠️ **Notice on Theoretical Projections (~35k - 100k):** These upper limits are architectural estimates derived from the low idle memory footprint of the localized Axum loop buffers. They have not been validated in a live environment. Due to cloud credit constraints, active load-testing was halted at the 20,000 concurrent user baseline (~3,750 messages/sec). Scaling past this point introduces external platform bottlenecks that remain outside the scope of this testbench:
-> * **Infrastructure Overhead:** Scaling to 100,000 active stateful WebSockets shifts the problem away from the Rust runtime and into the underlying network infrastructure—specifically requiring deep tuning of Linux kernel TCP socket rings (`SOMAXCONN`) and Ingress-Nginx connection configurations.
-> * **State Layer Saturation:** At the 100k tier, a centralized state layer would face severe connection-pool starvation and I/O serialization locks. Reaching this horizon requires migrating from a basic cluster layout to localized data-sharding across multiple independent Redis primary instances.
+> ⚠️ **Note on the 35k/100k numbers:** These upper limits are theoretical projections based on the low memory footprint per socket in our Axum loops. I had to stop live load-testing at 20,000 concurrent users (~3,750 messages/sec) because I ran out of cloud credits on GKE. 
+> Scaling past this tier isn't a problem with the Rust code itself—it's a problem of network infrastructure. To actually hit these numbers, the cluster would need:
+> 1. Deep tuning of the Linux kernel TCP socket rings (`SOMAXCONN`) and Nginx Ingress connections.
+> 2. Sharding across multiple independent Redis primary nodes to prevent connection pool starvation and write-locks at the data layer.
 
 
 
